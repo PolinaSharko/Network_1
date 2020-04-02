@@ -61,23 +61,29 @@ class Coder(object):
 
     def make_set(self): #Все возможные сообщения длины len
         set = []
+        set1 = []
         for i in product('01', repeat=self.len):
             set.append(list(i))
-        return set
+        for i in set:
+            set1.append(''.join(i))
+        return set1
 
     def code_dict(self): #Множество кодовых слов
+        xr = ''
+        for i in range(self.deg):
+            if i == 0:
+                xr = xr + "1"
+            else:
+                xr = xr + '0'
+        print(len(self.set))
         for j in self.set:
-            xr = ''
-            for i in range(self.deg):
-                if i == 0:
-                    xr = xr + "1"
-                else:
-                    xr = xr + '0'
-            mxr = multipoly(''.join(j), xr)
+            mxr = multipoly(j, xr)
+            if len(mxr) < self.len+self.deg-1:
+                while len(mxr) != self.len+self.deg-1:
+                    mxr.insert(0, '0')
             try:
-                c = polydiv(np.array(multipoly(''.join(j), xr), dtype=np.int64), np.array(self.poly_g, dtype=np.int64))[1]
-                for i in range(len(c)):
-                    c[i] = str(c[i] % 2)
+                c = polydiv(np.array(mxr, dtype=np.int64), np.array(self.poly_g, dtype=np.int64))[1]
+                #print(mxr)
                 a = sumpoly(mxr, c)
                 self.ci.append(a)
             except UFuncTypeError:
@@ -85,55 +91,53 @@ class Coder(object):
 
     def coder_worker(self):
         self.code_dict()
-        pi = [0, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65,0.75, 0.85, 0.95, 1]
+        pi = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+        n = self.len+self.deg
         ai = []
-
         for i in self.ci:
             ai.append(i.count(1))
-        ai1 = []
-        for i in range(len(ai)):
-            ai1.append(ai.count(i))
-        if min(ai) == 0:
-            ai.remove(min(ai))
-        d = min(ai)
+        ai1 = [0]*n
+        for i in range(len(ai1)):
+            ai1[i] = (ai.count(i))
+        print(ai1)
+        for i in range(1, len(ai1)):
+            if ai1[i] != 0:
+                d = i
+                break
+
         pe1 = []
-        n = self.len+self.deg
 
         for j in range(len(pi)):
             pe = 0
             for i in range(d, n):
-                pe = pe + ai1[i]*pow(pi[j], i)*pow((1-pi[j]), (max(ai1)-i))
+                pe = pe + ai1[i]*pow(pi[j], i)*pow((1-pi[j]), (n - i - 1))
             pe1.append(pe)
-        plot1 = plt.plot(pi, pe1)
+        plt.grid()
+        plot1 = plt.plot(pi, pe1, label = 'Точная оценка')
         print(pe1)
 
         pe_high1 = []
-        d = min(ai)
         for i in range(len(pi)):
             pe_high = 0
-            for j in range(d):
-                pe_high = pe_high + (math.factorial(max(ai))/(math.factorial(j)*math.factorial(max(ai)-j)))*pow(pi[i], j)*pow((1-pi[i]), (max(ai)-j))
+            for j in range(0,  d):
+                pe_high = pe_high + (math.factorial(n)/(math.factorial(j)*math.factorial(n-j)))*pow(pi[i], j)*pow((1-pi[i]), (n-j))
             pe_high1.append(1-pe_high)
-        plot2 = plt.plot(pi, pe_high1)
-        print(pe_high1)
-        #save('pe1')
-        #plt.close()
+        plot2 = plt.plot(pi, pe_high1, '-.',  label = 'Верхняя граница')
 
         N = round(9/(4*self.accuracy*self.accuracy))
         for i in range(len(self.poly_g)):
             self.poly_g[i] = int(self.poly_g[i])
         pe_eps = []
-
-        a = copy.deepcopy(self.ci[random.randint(0, len(self.ci) - 1)])
-
         for i in range(len(pi)):
             count = 0
             err = 0
+
             while count < N:
                 b = []
                 e = []
+                a = copy.deepcopy(self.ci[random.randint(0, len(self.ci) - 1)])
                 for k in range(len(a)):
-                    if pi[random.randint(0, len(pi) - 1)] <= pi[i]:
+                    if random.uniform(0,1) < pi[i]:
                         e.append(1)
                     else:
                         e.append(0)
@@ -145,9 +149,10 @@ class Coder(object):
             pe_eps.append(err / N)
 
         print(pe_eps)
-        plot3 = plt.plot(pi, pe_eps)
-        save('pe1')
+        plot3 = plt.plot(pi, pe_eps, '-.', label='Имитационное моделирование')
+        plt.legend(loc=2)
+        save('pe3')
 
 
-Coder = Coder(1011, 4, 0.015)
+Coder = Coder(10111, 6, 0.015)
 Coder.coder_worker()
